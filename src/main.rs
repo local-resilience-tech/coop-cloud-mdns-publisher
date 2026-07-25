@@ -14,6 +14,8 @@ struct Cli {
 enum Commands {
     /// List installed co-op cloud apps
     Apps,
+    /// Publish mDNS A records for each installed app
+    Publish,
     /// Check whether Avahi is installed and running
     Status,
 }
@@ -24,6 +26,7 @@ async fn main() {
 
     match cli.command {
         Commands::Apps => commands::apps::handle_apps(),
+        Commands::Publish => commands::publish::handle_publish().await,
         Commands::Status => commands::status::handle_status().await,
     }
 }

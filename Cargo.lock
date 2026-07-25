@@ -193,6 +193,7 @@ dependencies = [
 name = "coop-cloud-mdns-publisher"
 version = "0.1.0"
 dependencies = [
+ "bitflags",
  "clap",
  "coop-cloud-docker-apps",
  "tokio",
