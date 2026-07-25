@@ -1,0 +1,12 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    purge)
+        if id -u ccmdns > /dev/null 2>&1; then
+            deluser --system ccmdns || true
+        fi
+        ;;
+esac
+
+#DEBHELPER#

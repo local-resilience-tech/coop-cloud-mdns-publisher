@@ -9,6 +9,20 @@ homepage = "https://lores.tech/"
 repository = "https://github.com/local-resilience-tech/coop-cloud-mdns-publisher/"
 keywords = ["lores", "coop-cloud", "mdns", "avahi"]
 license-file = "LICENSE.txt"
+description = "Publishes Coop Cloud app services via mDNS/Avahi"
+
+[package.metadata.deb]
+name = "ccmdns"
+maintainer = "Jade Ambrose <jade@merri-bek.tech>"
+depends = "avahi-daemon, $auto"
+section = "net"
+priority = "optional"
+assets = [
+    { source = "target/release/ccmdns", dest = "/usr/bin/ccmdns", mode = "755" },
+    { source = "README.md", dest = "/usr/share/doc/ccmdns/README.md", mode = "644" },
+]
+maintainer-scripts = "debian/"
+systemd-units = { unit-name = "ccmdns", enable = true }
 
 [[bin]]
 name = "ccmdns"
