@@ -13,6 +13,15 @@ trait AvahiServer {
     async fn get_state(&self) -> zbus::Result<i32>;
     async fn get_version_string(&self) -> zbus::Result<String>;
     async fn get_host_name_fqdn(&self) -> zbus::Result<String>;
+    #[allow(clippy::too_many_arguments)]
+    async fn resolve_host_name(
+        &self,
+        interface: i32,
+        protocol: i32,
+        name: &str,
+        aprotocol: i32,
+        flags: u32,
+    ) -> zbus::Result<(i32, i32, String, i32, String, u32)>;
 }
 
 #[derive(Debug)]
@@ -70,6 +79,7 @@ pub struct AvahiStatus {
     pub version: String,
     pub state: AvahiState,
     pub fqdn: String,
+    pub local_address: Option<String>,
 }
 
 pub struct AvahiClient {
@@ -112,10 +122,19 @@ impl AvahiClient {
             .await
             .unwrap_or_else(|_| "(unknown)".to_string());
 
+        // AVAHI_IF_UNSPEC = -1, AVAHI_PROTO_UNSPEC = -1, AVAHI_PROTO_INET = 0
+        let local_address = self
+            .proxy
+            .resolve_host_name(-1, -1, &fqdn, 0, 0)
+            .await
+            .ok()
+            .map(|(_, _, _, _, addr, _)| addr);
+
         Ok(AvahiStatus {
             version,
             state: AvahiState::from_raw(state),
             fqdn,
+            local_address,
         })
     }
 }

@@ -20,6 +20,9 @@ pub async fn handle_status() {
 
     println!("{} — {}", status.version, status.state.label());
     println!("Hostname: {}", status.fqdn);
+    if let Some(addr) = &status.local_address {
+        println!("Address:  {addr}");
+    }
 
     if status.state != AvahiState::Running {
         std::process::exit(1);
