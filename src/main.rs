@@ -1,3 +1,4 @@
+mod avahi;
 mod commands;
 
 use clap::{Parser, Subcommand};
