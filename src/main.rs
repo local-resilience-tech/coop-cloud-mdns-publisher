@@ -1,5 +1,4 @@
-mod apps;
-mod status;
+mod commands;
 
 use clap::{Parser, Subcommand};
 
@@ -23,7 +22,7 @@ async fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Apps => apps::handle_apps(),
-        Commands::Status => status::handle_status().await,
+        Commands::Apps => commands::apps::handle_apps(),
+        Commands::Status => commands::status::handle_status().await,
     }
 }
