@@ -1,4 +1,8 @@
-use zbus::{Connection, proxy};
+use std::time::Duration;
+use tokio::time::timeout;
+use zbus::{connection, proxy};
+
+const AVAHI_TIMEOUT: Duration = Duration::from_secs(3);
 
 #[proxy(
     interface = "org.freedesktop.Avahi.Server",
@@ -12,12 +16,24 @@ trait AvahiServer {
 }
 
 pub async fn handle_status() {
-    let conn = match Connection::system().await {
-        Ok(c) => c,
+    let builder = match connection::Builder::system() {
+        Ok(b) => b,
         Err(e) => {
+            eprintln!("error: could not create D-Bus connection builder: {e}");
+            std::process::exit(1);
+        }
+    };
+
+    let conn = match timeout(AVAHI_TIMEOUT, builder.method_timeout(AVAHI_TIMEOUT).build()).await {
+        Err(_) => {
+            eprintln!("error: timed out connecting to system D-Bus");
+            std::process::exit(1);
+        }
+        Ok(Err(e)) => {
             eprintln!("error: could not connect to system D-Bus: {e}");
             std::process::exit(1);
         }
+        Ok(Ok(c)) => c,
     };
 
     let proxy = match AvahiServerProxy::new(&conn).await {
@@ -54,7 +70,10 @@ pub async fn handle_status() {
         _ => "Unknown",
     };
 
-    let fqdn = proxy.get_host_name_fqdn().await.unwrap_or_else(|_| "(unknown)".to_string());
+    let fqdn = proxy
+        .get_host_name_fqdn()
+        .await
+        .unwrap_or_else(|_| "(unknown)".to_string());
 
     println!("{version} — {state_label}");
     println!("Hostname: {fqdn}");
