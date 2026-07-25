@@ -5,3 +5,7 @@ Publish mDNS records for each [Co-op Cloud](https://coopcloud.tech/) application
 ## Licence
 
 This software is licensed under the ANTI-CAPITALIST SOFTWARE LICENSE (v 1.4). See [LICENSE.txt](./LICENSE.txt) for details.
+
+## Dependencies
+
+This CLI app is only designed to be running on linux machines that are running the Avahi service, and have DBus available to communicate with it.

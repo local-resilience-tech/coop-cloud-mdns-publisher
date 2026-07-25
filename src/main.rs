@@ -1,4 +1,5 @@
 mod apps;
+mod status;
 
 use clap::{Parser, Subcommand};
 
@@ -13,12 +14,16 @@ struct Cli {
 enum Commands {
     /// List installed co-op cloud apps
     Apps,
+    /// Check whether Avahi is installed and running
+    Status,
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let cli = Cli::parse();
 
     match cli.command {
         Commands::Apps => apps::handle_apps(),
+        Commands::Status => status::handle_status().await,
     }
 }
