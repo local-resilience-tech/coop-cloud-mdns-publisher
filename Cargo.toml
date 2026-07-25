@@ -1,0 +1,13 @@
+[package]
+name = "coop-cloud-mdns-publisher"
+version = "0.1.0"
+edition = "2024"
+authors = ["Jade Ambrose", "Merri-bek Tech Inc."]
+rust-version = "1.96"
+readme = "README.md"
+homepage = "https://lores.tech/"
+repository = "https://github.com/local-resilience-tech/coop-cloud-mdns-publisher/"
+keywords = ["lores", "coop-cloud", "mdns", "avahi"]
+license-file = "LICENSE.txt"
+
+[dependencies]
