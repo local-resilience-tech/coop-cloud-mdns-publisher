@@ -10,4 +10,10 @@ repository = "https://github.com/local-resilience-tech/coop-cloud-mdns-publisher
 keywords = ["lores", "coop-cloud", "mdns", "avahi"]
 license-file = "LICENSE.txt"
 
+[[bin]]
+name = "ccmdns"
+path = "src/main.rs"
+
 [dependencies]
+clap = { version = "4", features = ["derive"] }
+coop-cloud-docker-apps = "0.2.0"
