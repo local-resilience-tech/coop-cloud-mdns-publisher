@@ -16,12 +16,21 @@ jobs:
             deb-arch: amd64
           - target: aarch64-unknown-linux-gnu
             deb-arch: arm64
+            apt-arch: arm64
           - target: armv7-unknown-linux-gnueabihf
             deb-arch: armhf
+            apt-arch: armhf
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install cross-compilation sysroot (ARM targets)
+        if: matrix.apt-arch != ''
+        run: |
+          sudo dpkg --add-architecture ${{ matrix.apt-arch }}
+          sudo apt-get update
+          sudo apt-get install -y libc6:${{ matrix.apt-arch }} libgcc-s1:${{ matrix.apt-arch }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
