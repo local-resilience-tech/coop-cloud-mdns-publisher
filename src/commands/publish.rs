@@ -1,6 +1,13 @@
+use std::collections::HashMap;
+use std::time::Duration;
+
 use coop_cloud_docker_apps::coop_cloud_apps;
+use tokio::time;
 
 use crate::avahi::{AvahiClient, AvahiState, PublishedRecord};
+
+/// How often to re-check the set of deployed co-op cloud apps.
+const POLL_INTERVAL: Duration = Duration::from_secs(30);
 
 pub async fn handle_publish() {
     let client = match AvahiClient::connect().await {
@@ -21,7 +28,10 @@ pub async fn handle_publish() {
     };
 
     if status.state != AvahiState::Running {
-        eprintln!("error: Avahi is not running (state: {})", status.state.label());
+        eprintln!(
+            "error: Avahi is not running (state: {})",
+            status.state.label()
+        );
         std::process::exit(1);
     }
 
@@ -41,29 +51,50 @@ pub async fn handle_publish() {
         }
     };
 
-    let apps = coop_cloud_apps();
-    if apps.is_empty() {
-        println!("No co-op cloud apps installed; nothing to publish.");
-        return;
-    }
+    // Map from app name → active PublishedRecord, kept alive for the process lifetime.
+    let mut published: HashMap<String, PublishedRecord> = HashMap::new();
 
-    // Keep entry groups alive for as long as the process runs.
-    let mut _groups: Vec<PublishedRecord> = Vec::new();
+    println!("Press Ctrl+C to stop publishing.");
 
-    for app in &apps {
-        let record_name = format!("{}-{}.local", app.name, hostname);
-        match client.publish_address(&record_name, &address).await {
-            Ok(group) => {
-                println!("Published: {} → {}", record_name, address);
-                _groups.push(group);
+    let mut interval = time::interval(POLL_INTERVAL);
+    loop {
+        tokio::select! {
+            _ = interval.tick() => {
+                let apps = coop_cloud_apps();
+                let current_names: std::collections::HashSet<&str> =
+                    apps.iter().map(|a| a.name.as_str()).collect();
+
+                // Withdraw records for apps that are no longer deployed.
+                published.retain(|name, _| {
+                    if !current_names.contains(name.as_str()) {
+                        println!("Withdrawn: {name}");
+                        false
+                    } else {
+                        true
+                    }
+                });
+
+                // Publish records for newly discovered apps.
+                for app in &apps {
+                    if published.contains_key(&app.name) {
+                        continue;
+                    }
+                    let record_name = format!("{}-{}.local", app.name, hostname);
+                    match client.publish_address(&record_name, &address).await {
+                        Ok(group) => {
+                            println!("Published: {} → {}", record_name, address);
+                            published.insert(app.name.clone(), group);
+                        }
+                        Err(e) => {
+                            eprintln!("warning: could not publish {record_name}: {e}");
+                        }
+                    }
+                }
             }
-            Err(e) => {
-                eprintln!("warning: could not publish {record_name}: {e}");
+            _ = tokio::signal::ctrl_c() => {
+                println!("Shutting down; records will be withdrawn.");
+                break;
             }
         }
     }
-
-    println!("Press Ctrl+C to stop publishing.");
-    tokio::signal::ctrl_c().await.ok();
-    println!("Shutting down; records will be withdrawn.");
 }
