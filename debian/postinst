@@ -19,6 +19,11 @@ case "$1" in
         else
             echo "Warning: 'docker' group not found. Install Docker and then run: adduser ccmdns docker" >&2
         fi
+
+        # Create log directory
+        mkdir -p /var/log/ccmdns
+        chown ccmdns:ccmdns /var/log/ccmdns
+        chmod 750 /var/log/ccmdns
         ;;
 esac
 

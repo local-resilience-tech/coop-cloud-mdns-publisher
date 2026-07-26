@@ -20,6 +20,7 @@ priority = "optional"
 assets = [
     { source = "target/release/ccmdns", dest = "/usr/bin/ccmdns", mode = "755" },
     { source = "README.md", dest = "/usr/share/doc/ccmdns/README.md", mode = "644" },
+    { source = "debian/ccmdns.logrotate", dest = "/etc/logrotate.d/ccmdns", mode = "644" },
 ]
 maintainer-scripts = "debian/"
 systemd-units = { unit-name = "ccmdns", enable = true }
@@ -33,6 +34,9 @@ bitflags = "2"
 clap = { version = "4", features = ["derive"] }
 coop-cloud-docker-apps = "0.2.0"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal"] }
+tracing = "0.1"
+tracing-appender = "0.2"
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 zbus = { version = "5", default-features = false, features = ["tokio"] }
 
 [profile.release]

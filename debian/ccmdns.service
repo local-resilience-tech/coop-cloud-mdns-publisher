@@ -5,7 +5,7 @@ Requires=avahi-daemon.service
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/ccmdns publish
+ExecStart=/usr/bin/ccmdns --log-dir /var/log/ccmdns publish
 Restart=on-failure
 RestartSec=5s
 User=ccmdns
@@ -13,6 +13,8 @@ Group=ccmdns
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
+LogsDirectory=ccmdns
+ReadWritePaths=/var/log/ccmdns
 
 [Install]
 WantedBy=multi-user.target
