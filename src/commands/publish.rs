@@ -1,6 +1,17 @@
-use coop_cloud_docker_apps::coop_cloud_apps;
+use std::time::Duration;
 
-use crate::avahi::{AvahiClient, AvahiState, PublishedRecord};
+use coop_cloud_docker_apps::coop_cloud_apps;
+use tokio::time;
+
+use crate::avahi::{AvahiClient, AvahiState};
+
+use crate::helpers::published_apps::PublishedApps;
+
+/// How often to re-check the set of deployed co-op cloud apps.
+const POLL_INTERVAL: Duration = Duration::from_secs(30);
+
+/// How long an app must be continuously absent before its mDNS record is withdrawn.
+const WITHDRAWAL_GRACE_PERIOD: Duration = Duration::from_secs(300);
 
 pub async fn handle_publish() {
     let client = match AvahiClient::connect().await {
@@ -21,7 +32,10 @@ pub async fn handle_publish() {
     };
 
     if status.state != AvahiState::Running {
-        eprintln!("error: Avahi is not running (state: {})", status.state.label());
+        eprintln!(
+            "error: Avahi is not running (state: {})",
+            status.state.label()
+        );
         std::process::exit(1);
     }
 
@@ -41,29 +55,38 @@ pub async fn handle_publish() {
         }
     };
 
-    let apps = coop_cloud_apps();
-    if apps.is_empty() {
-        println!("No co-op cloud apps installed; nothing to publish.");
-        return;
-    }
+    let mut published = PublishedApps::new(WITHDRAWAL_GRACE_PERIOD);
 
-    // Keep entry groups alive for as long as the process runs.
-    let mut _groups: Vec<PublishedRecord> = Vec::new();
+    println!("Press Ctrl+C to stop publishing.");
 
-    for app in &apps {
-        let record_name = format!("{}-{}.local", app.name, hostname);
-        match client.publish_address(&record_name, &address).await {
-            Ok(group) => {
-                println!("Published: {} → {}", record_name, address);
-                _groups.push(group);
+    let mut interval = time::interval(POLL_INTERVAL);
+    loop {
+        tokio::select! {
+            _ = interval.tick() => {
+                let apps = coop_cloud_apps();
+
+                for name in published.to_withdraw(&apps) {
+                    println!("Withdrawn (grace period elapsed): {name}");
+                    published.remove(&name);
+                }
+
+                for app in published.to_publish(&apps) {
+                    let record_name = format!("{}-{}.local", app.name, hostname);
+                    match client.publish_address(&record_name, &address).await {
+                        Ok(group) => {
+                            println!("Published: {} → {}", record_name, address);
+                            published.insert(app.name.clone(), group);
+                        }
+                        Err(e) => {
+                            eprintln!("warning: could not publish {record_name}: {e}");
+                        }
+                    }
+                }
             }
-            Err(e) => {
-                eprintln!("warning: could not publish {record_name}: {e}");
+            _ = tokio::signal::ctrl_c() => {
+                println!("Shutting down; records will be withdrawn.");
+                break;
             }
         }
     }
-
-    println!("Press Ctrl+C to stop publishing.");
-    tokio::signal::ctrl_c().await.ok();
-    println!("Shutting down; records will be withdrawn.");
 }
