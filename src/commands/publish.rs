@@ -55,7 +55,7 @@ pub async fn handle_publish() {
         }
     };
 
-    let mut published = PublishedApps::new(WITHDRAWAL_GRACE_PERIOD);
+    let mut published = PublishedApps::new(WITHDRAWAL_GRACE_PERIOD, address);
 
     println!("Press Ctrl+C to stop publishing.");
 
@@ -63,6 +63,25 @@ pub async fn handle_publish() {
     loop {
         tokio::select! {
             _ = interval.tick() => {
+                // Re-check the host's IP; if it changed, replace published (dropping all records)
+                // so every app is re-published under the new address below.
+                match client.status().await {
+                    Ok(s) => {
+                        if let Some(new_address) = s.local_address {
+                            if !published.matches_address(&new_address) {
+                                println!(
+                                    "IP address changed: {} → {}; re-publishing all records.",
+                                    published.address(), new_address
+                                );
+                                published = PublishedApps::new(WITHDRAWAL_GRACE_PERIOD, new_address);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("warning: could not re-check local address: {e}");
+                    }
+                }
+
                 let apps = coop_cloud_apps();
 
                 for name in published.to_withdraw(&apps) {
@@ -72,9 +91,9 @@ pub async fn handle_publish() {
 
                 for app in published.to_publish(&apps) {
                     let record_name = format!("{}-{}.local", app.name, hostname);
-                    match client.publish_address(&record_name, &address).await {
+                    match client.publish_address(&record_name, published.address()).await {
                         Ok(group) => {
-                            println!("Published: {} → {}", record_name, address);
+                            println!("Published: {} → {}", record_name, published.address());
                             published.insert(app.name.clone(), group);
                         }
                         Err(e) => {
