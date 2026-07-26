@@ -18,7 +18,7 @@ struct PublishedApp<R> {
     state: AppState,
 }
 
-/// Tracks which apps currently have active mDNS records for a specific host IP address.
+/// Tracks which apps currently have active mDNS records for a specific host IP address and hostname.
 ///
 /// The type parameter `R` is the record handle (e.g. [`PublishedRecord`] in production,
 /// `()` in tests).
@@ -26,14 +26,16 @@ pub struct PublishedApps<R = PublishedRecord> {
     entries: HashMap<String, PublishedApp<R>>,
     grace_period: Duration,
     address: String,
+    hostname: String,
 }
 
 impl<R> PublishedApps<R> {
-    pub fn new(grace_period: Duration, address: String) -> Self {
+    pub fn new(grace_period: Duration, address: String, hostname: String) -> Self {
         Self {
             entries: HashMap::new(),
             grace_period,
             address,
+            hostname,
         }
     }
 
@@ -41,9 +43,13 @@ impl<R> PublishedApps<R> {
         &self.address
     }
 
-    /// Returns `true` if `addr` matches the address this instance was created for.
-    pub fn matches_address(&self, addr: &str) -> bool {
-        self.address == addr
+    pub fn hostname(&self) -> &str {
+        &self.hostname
+    }
+
+    /// Returns `true` if both `addr` and `hostname` match what this instance was created for.
+    pub fn matches(&self, addr: &str, hostname: &str) -> bool {
+        self.address == addr && self.hostname == hostname
     }
 
     /// Apps in `current` that do not yet have a published record.
@@ -125,7 +131,11 @@ mod tests {
 
     #[test]
     fn to_publish_returns_all_when_empty() {
-        let pa = TestApps::new(long_grace(), "127.0.0.1".to_string());
+        let pa = TestApps::new(
+            long_grace(),
+            "127.0.0.1".to_string(),
+            "testhost".to_string(),
+        );
         let apps = vec![app("foo"), app("bar")];
         let result: Vec<&str> = pa
             .to_publish(&apps)
@@ -137,7 +147,11 @@ mod tests {
 
     #[test]
     fn to_publish_excludes_already_published() {
-        let mut pa = TestApps::new(long_grace(), "127.0.0.1".to_string());
+        let mut pa = TestApps::new(
+            long_grace(),
+            "127.0.0.1".to_string(),
+            "testhost".to_string(),
+        );
         pa.insert("foo".to_string(), ());
         let apps = vec![app("foo"), app("bar")];
         let result: Vec<&str> = pa
@@ -150,7 +164,11 @@ mod tests {
 
     #[test]
     fn to_withdraw_not_triggered_within_grace_period() {
-        let mut pa = TestApps::new(long_grace(), "127.0.0.1".to_string());
+        let mut pa = TestApps::new(
+            long_grace(),
+            "127.0.0.1".to_string(),
+            "testhost".to_string(),
+        );
         pa.insert("foo".to_string(), ());
         // First call with empty list — starts grace period.
         let withdrawn = pa.to_withdraw(&[]);
@@ -162,7 +180,11 @@ mod tests {
 
     #[test]
     fn to_withdraw_triggers_after_grace_period() {
-        let mut pa = TestApps::new(instant_grace(), "127.0.0.1".to_string());
+        let mut pa = TestApps::new(
+            instant_grace(),
+            "127.0.0.1".to_string(),
+            "testhost".to_string(),
+        );
         pa.insert("foo".to_string(), ());
         // First call starts the pending state.
         pa.to_withdraw(&[]);
@@ -173,7 +195,11 @@ mod tests {
 
     #[test]
     fn reappearing_app_cancels_pending_withdrawal() {
-        let mut pa = TestApps::new(long_grace(), "127.0.0.1".to_string());
+        let mut pa = TestApps::new(
+            long_grace(),
+            "127.0.0.1".to_string(),
+            "testhost".to_string(),
+        );
         pa.insert("foo".to_string(), ());
         // App goes absent — starts grace period.
         pa.to_withdraw(&[]);
@@ -187,7 +213,11 @@ mod tests {
 
     #[test]
     fn remove_prevents_future_withdrawal() {
-        let mut pa = TestApps::new(instant_grace(), "127.0.0.1".to_string());
+        let mut pa = TestApps::new(
+            instant_grace(),
+            "127.0.0.1".to_string(),
+            "testhost".to_string(),
+        );
         pa.insert("foo".to_string(), ());
         let to_withdraw = pa.to_withdraw(&[]);
         // Grace period elapsed on second call; but we remove before that.

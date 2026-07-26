@@ -55,7 +55,7 @@ pub async fn handle_publish() {
         }
     };
 
-    let mut published = PublishedApps::new(WITHDRAWAL_GRACE_PERIOD, address);
+    let mut published = PublishedApps::new(WITHDRAWAL_GRACE_PERIOD, address, hostname);
 
     println!("Press Ctrl+C to stop publishing.");
 
@@ -63,22 +63,23 @@ pub async fn handle_publish() {
     loop {
         tokio::select! {
             _ = interval.tick() => {
-                // Re-check the host's IP; if it changed, replace published (dropping all records)
-                // so every app is re-published under the new address below.
-                match client.status().await {
-                    Ok(s) => {
+                // Re-check the host's IP and hostname; if either changed, replace published
+                // (dropping all records) so every app is re-published below.
+                match (client.status().await, client.get_host_name().await) {
+                    (Ok(s), Ok(new_hostname)) => {
                         if let Some(new_address) = s.local_address {
-                            if !published.matches_address(&new_address) {
+                            if !published.matches(&new_address, &new_hostname) {
                                 println!(
-                                    "IP address changed: {} → {}; re-publishing all records.",
-                                    published.address(), new_address
+                                    "Host identity changed (address: {} → {}, hostname: {} → {}); re-publishing all records.",
+                                    published.address(), new_address,
+                                    published.hostname(), new_hostname,
                                 );
-                                published = PublishedApps::new(WITHDRAWAL_GRACE_PERIOD, new_address);
+                                published = PublishedApps::new(WITHDRAWAL_GRACE_PERIOD, new_address, new_hostname);
                             }
                         }
                     }
-                    Err(e) => {
-                        eprintln!("warning: could not re-check local address: {e}");
+                    (Err(e), _) | (_, Err(e)) => {
+                        eprintln!("warning: could not re-check host identity: {e}");
                     }
                 }
 
@@ -90,7 +91,7 @@ pub async fn handle_publish() {
                 }
 
                 for app in published.to_publish(&apps) {
-                    let record_name = format!("{}-{}.local", app.name, hostname);
+                    let record_name = format!("{}-{}.local", app.name, published.hostname());
                     match client.publish_address(&record_name, published.address()).await {
                         Ok(group) => {
                             println!("Published: {} → {}", record_name, published.address());
