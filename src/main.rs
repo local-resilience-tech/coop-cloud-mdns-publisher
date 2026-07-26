@@ -1,5 +1,6 @@
 mod avahi;
 mod commands;
+mod helpers;
 
 use clap::{Parser, Subcommand};
 

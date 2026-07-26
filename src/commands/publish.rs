@@ -1,49 +1,17 @@
-use std::collections::HashMap;
 use std::time::Duration;
 
-use coop_cloud_docker_apps::{CoopCloudApp, coop_cloud_apps};
+use coop_cloud_docker_apps::coop_cloud_apps;
 use tokio::time;
 
-use crate::avahi::{AvahiClient, AvahiState, PublishedRecord};
+use crate::avahi::{AvahiClient, AvahiState};
+
+use crate::helpers::published_apps::PublishedApps;
 
 /// How often to re-check the set of deployed co-op cloud apps.
 const POLL_INTERVAL: Duration = Duration::from_secs(30);
 
-/// Tracks which apps currently have active mDNS records.
-struct PublishedApps(HashMap<String, PublishedRecord>);
-
-impl PublishedApps {
-    fn new() -> Self {
-        Self(HashMap::new())
-    }
-
-    /// Apps in `current` that do not yet have a published record.
-    fn to_publish<'a>(&self, current: &'a [CoopCloudApp]) -> Vec<&'a CoopCloudApp> {
-        current
-            .iter()
-            .filter(|a| !self.0.contains_key(&a.name))
-            .collect()
-    }
-
-    /// Names of apps that have a published record but are absent from `current`.
-    fn to_withdraw(&self, current: &[CoopCloudApp]) -> Vec<String> {
-        let current_names: std::collections::HashSet<&str> =
-            current.iter().map(|a| a.name.as_str()).collect();
-        self.0
-            .keys()
-            .filter(|name| !current_names.contains(name.as_str()))
-            .cloned()
-            .collect()
-    }
-
-    fn insert(&mut self, name: String, record: PublishedRecord) {
-        self.0.insert(name, record);
-    }
-
-    fn remove(&mut self, name: &str) {
-        self.0.remove(name);
-    }
-}
+/// How long an app must be continuously absent before its mDNS record is withdrawn.
+const WITHDRAWAL_GRACE_PERIOD: Duration = Duration::from_secs(300);
 
 pub async fn handle_publish() {
     let client = match AvahiClient::connect().await {
@@ -87,7 +55,7 @@ pub async fn handle_publish() {
         }
     };
 
-    let mut published = PublishedApps::new();
+    let mut published = PublishedApps::new(WITHDRAWAL_GRACE_PERIOD);
 
     println!("Press Ctrl+C to stop publishing.");
 
@@ -98,7 +66,7 @@ pub async fn handle_publish() {
                 let apps = coop_cloud_apps();
 
                 for name in published.to_withdraw(&apps) {
-                    println!("Withdrawn: {name}");
+                    println!("Withdrawn (grace period elapsed): {name}");
                     published.remove(&name);
                 }
 
