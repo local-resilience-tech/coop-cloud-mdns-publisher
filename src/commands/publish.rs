@@ -1,13 +1,49 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use coop_cloud_docker_apps::coop_cloud_apps;
+use coop_cloud_docker_apps::{CoopCloudApp, coop_cloud_apps};
 use tokio::time;
 
 use crate::avahi::{AvahiClient, AvahiState, PublishedRecord};
 
 /// How often to re-check the set of deployed co-op cloud apps.
 const POLL_INTERVAL: Duration = Duration::from_secs(30);
+
+/// Tracks which apps currently have active mDNS records.
+struct PublishedApps(HashMap<String, PublishedRecord>);
+
+impl PublishedApps {
+    fn new() -> Self {
+        Self(HashMap::new())
+    }
+
+    /// Apps in `current` that do not yet have a published record.
+    fn to_publish<'a>(&self, current: &'a [CoopCloudApp]) -> Vec<&'a CoopCloudApp> {
+        current
+            .iter()
+            .filter(|a| !self.0.contains_key(&a.name))
+            .collect()
+    }
+
+    /// Names of apps that have a published record but are absent from `current`.
+    fn to_withdraw(&self, current: &[CoopCloudApp]) -> Vec<String> {
+        let current_names: std::collections::HashSet<&str> =
+            current.iter().map(|a| a.name.as_str()).collect();
+        self.0
+            .keys()
+            .filter(|name| !current_names.contains(name.as_str()))
+            .cloned()
+            .collect()
+    }
+
+    fn insert(&mut self, name: String, record: PublishedRecord) {
+        self.0.insert(name, record);
+    }
+
+    fn remove(&mut self, name: &str) {
+        self.0.remove(name);
+    }
+}
 
 pub async fn handle_publish() {
     let client = match AvahiClient::connect().await {
@@ -51,8 +87,7 @@ pub async fn handle_publish() {
         }
     };
 
-    // Map from app name → active PublishedRecord, kept alive for the process lifetime.
-    let mut published: HashMap<String, PublishedRecord> = HashMap::new();
+    let mut published = PublishedApps::new();
 
     println!("Press Ctrl+C to stop publishing.");
 
@@ -61,24 +96,13 @@ pub async fn handle_publish() {
         tokio::select! {
             _ = interval.tick() => {
                 let apps = coop_cloud_apps();
-                let current_names: std::collections::HashSet<&str> =
-                    apps.iter().map(|a| a.name.as_str()).collect();
 
-                // Withdraw records for apps that are no longer deployed.
-                published.retain(|name, _| {
-                    if !current_names.contains(name.as_str()) {
-                        println!("Withdrawn: {name}");
-                        false
-                    } else {
-                        true
-                    }
-                });
+                for name in published.to_withdraw(&apps) {
+                    println!("Withdrawn: {name}");
+                    published.remove(&name);
+                }
 
-                // Publish records for newly discovered apps.
-                for app in &apps {
-                    if published.contains_key(&app.name) {
-                        continue;
-                    }
+                for app in published.to_publish(&apps) {
                     let record_name = format!("{}-{}.local", app.name, hostname);
                     match client.publish_address(&record_name, &address).await {
                         Ok(group) => {
