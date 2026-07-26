@@ -34,3 +34,6 @@ clap = { version = "4", features = ["derive"] }
 coop-cloud-docker-apps = "0.2.0"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal"] }
 zbus = { version = "5", default-features = false, features = ["tokio"] }
+
+[profile.release]
+strip = true
