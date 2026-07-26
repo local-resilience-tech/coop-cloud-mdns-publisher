@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use coop_cloud_docker_apps::coop_cloud_apps;
+use coop_cloud_docker_apps::{CoopCloudApp, coop_cloud_apps};
 use tokio::time;
 
 use crate::avahi::{AvahiClient, AvahiState};
@@ -91,7 +91,7 @@ pub async fn handle_publish() {
                 }
 
                 for app in published.to_publish(&apps) {
-                    let record_name = format!("{}-{}.local", app.name, published.hostname());
+                    let record_name = host_name_for_app(app, published.hostname());
                     match client.publish_address(&record_name, published.address()).await {
                         Ok(group) => {
                             println!("Published: {} → {}", record_name, published.address());
@@ -109,4 +109,8 @@ pub async fn handle_publish() {
             }
         }
     }
+}
+
+fn host_name_for_app(app: &CoopCloudApp, hostname: &str) -> String {
+    format!("{}-{}.local", app.name, hostname)
 }
