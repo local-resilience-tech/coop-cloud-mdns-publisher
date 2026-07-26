@@ -28,9 +28,18 @@ jobs:
       - name: Install cross-compilation sysroot (ARM targets)
         if: matrix.apt-arch != ''
         run: |
-          sudo dpkg --add-architecture ${{ matrix.apt-arch }}
+          APT_ARCH=${{ matrix.apt-arch }}
+          sudo dpkg --add-architecture ${APT_ARCH}
+          # Restrict existing sources to amd64 only (ARM packages are on ports.ubuntu.com, not the main mirror)
+          sudo sed -i '/^Types: deb/a Architectures: amd64' /etc/apt/sources.list.d/ubuntu.sources
+          # Add the ports mirror for the ARM architecture
+          sudo tee /etc/apt/sources.list.d/ports-${APT_ARCH}.list > /dev/null << EOF
+          deb [arch=${APT_ARCH}] http://ports.ubuntu.com/ubuntu-ports noble main restricted universe
+          deb [arch=${APT_ARCH}] http://ports.ubuntu.com/ubuntu-ports noble-updates main restricted universe
+          deb [arch=${APT_ARCH}] http://ports.ubuntu.com/ubuntu-ports noble-security main restricted universe
+          EOF
           sudo apt-get update
-          sudo apt-get install -y libc6:${{ matrix.apt-arch }} libgcc-s1:${{ matrix.apt-arch }}
+          sudo apt-get install -y libc6:${APT_ARCH} libgcc-s1:${APT_ARCH}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
