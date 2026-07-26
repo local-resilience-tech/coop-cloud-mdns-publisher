@@ -116,7 +116,11 @@ mod tests {
     fn to_publish_returns_all_when_empty() {
         let pa = TestApps::new(long_grace());
         let apps = vec![app("foo"), app("bar")];
-        let result: Vec<&str> = pa.to_publish(&apps).iter().map(|a| a.name.as_str()).collect();
+        let result: Vec<&str> = pa
+            .to_publish(&apps)
+            .iter()
+            .map(|a| a.name.as_str())
+            .collect();
         assert_eq!(result, vec!["foo", "bar"]);
     }
 
@@ -125,7 +129,11 @@ mod tests {
         let mut pa = TestApps::new(long_grace());
         pa.insert("foo".to_string(), ());
         let apps = vec![app("foo"), app("bar")];
-        let result: Vec<&str> = pa.to_publish(&apps).iter().map(|a| a.name.as_str()).collect();
+        let result: Vec<&str> = pa
+            .to_publish(&apps)
+            .iter()
+            .map(|a| a.name.as_str())
+            .collect();
         assert_eq!(result, vec!["bar"]);
     }
 
