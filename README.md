@@ -42,6 +42,20 @@ This will give help on the availability of CLI commands. In general, the main co
 
 ## Service
 
-To run this as a systemd service, please install the `.deb` package built from the [latest release on github](https://github.com/local-resilience-tech/coop-cloud-mdns-publisher/releases).
+### Debian / Ubuntu
+
+To run this as a systemd service, please install the `.deb` package built from the [latest release on github](https://github.com/local-resilience-tech/coop-cloud-mdns-publisher/releases) that matches your architecture.
+
+Install the `.deb` file with `apt`, eg `sudo apt install ./ccmdns_0.2.0-1_amd64.deb`.
+
+Then, the service should be running. You can check it with:
+
+```bash
+sudo systemctl status ccmdns
+```
+
+You can also start and stop it, with `sudo systemctl stop|start ccmdns`.
+
+### Other platforms
 
 For other linux distributions, it's possible to build your own service setup to run `ccmdns publish` but it would be better if you contact us (via an issue on this repository) so that we can automatically build the package type that you need with each release.
