@@ -115,7 +115,8 @@ mod tests {
     fn app(name: &str) -> CoopCloudApp {
         CoopCloudApp {
             name: name.to_string(),
-            version: "1.0.0".to_string(),
+            recipe: name.to_string(),
+            version: Some("1.0.0".to_string()),
             url: None,
             lores: None,
         }

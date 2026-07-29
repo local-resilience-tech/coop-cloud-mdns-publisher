@@ -7,7 +7,7 @@ pub fn handle_apps() {
         info!("No co-op cloud apps installed.");
     } else {
         for app in apps {
-            info!(name = %app.name, version = %app.version, "App");
+            info!(name = %app.name, version = %app.version.as_deref().unwrap_or("unknown"), "App");
         }
     }
 }

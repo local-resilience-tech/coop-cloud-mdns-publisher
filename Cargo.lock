@@ -188,9 +188,9 @@ dependencies = [
 
 [[package]]
 name = "coop-cloud-docker-apps"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f21e560fb7810c7ccb9a11e262321f28100dd128c42d03565325c39ccab8c546"
+checksum = "f6a8183fb597510ad70cd684a42dcfe6ca598260bf57229bfc0ee6023905a58d"
 dependencies = [
  "anyhow",
  "serde",
